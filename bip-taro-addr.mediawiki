@@ -54,7 +54,38 @@ We refer to this value as the <code>taro_hrp</code>
 Given the 32-byte <code>asset_id</code>, 32-byte
 <code>asset_script_key</code>, and 32-byte x-only BIP 340/341 internal public
 key, 8-byte amount to send, an address is encoded as:
-* <code>bech32(hrp=taro_hrp, asset_id || asset_script_key || internal_key || amt)</code>
+* <code>bech32(hrp=taro_hrp, addr_tlv_payload)</code>
+
+where <code>addr_tlv_payload</code> is a TLV payload composed of the following
+types:
+* type: 0 (<code>asset_id</code>)
+** value:
+*** [<code>32*byte</code>:<code>asset_to_send</code>]
+* type: 1 (<code>asset_key_family</code>)
+** value:
+*** [<code>32*byte</code>:<code>family_key</code>]
+* type: 2 (<code>asset_script_key</code>)
+** value:
+*** [<code>32*byte</code>:<code>script_key</code>]
+* type: 4 (<code>internal_key</code>)
+** value:
+*** [<code>32*byte</code>:<code>taproot_internal_key</code>]
+* type: 6 (<code>amt</code>)
+** value:
+*** [<code>BigSize</code>:<code>amt_to_send</code>]
+* type: 7 (<code>asset_type</code>)
+** value:
+*** [<code>byte</code>:<code>asset_type</code>]
+
+Inspired by Lightning's BOLT specification, we adopt the "it's OK to be odd"
+semantics here as well. This enables receivers to specify to the caller certain
+information that MUST be known in order to properly complete a transfer.
+
+The only odd keys specified in the current version are the
+<code>asset_key_family</code> type and the <code>asset_type</code> field. The
+<code>asset_key_family</code> field isn't always needed for assets that don't
+allow for continual re-issuance. Similarly, if the <code>asset_type</code>
+field isn't specified, then one can assume a normal asset is being sent.
 
 ===Decoding and Sending To An Address===
 
@@ -68,7 +99,8 @@ Construct a new blank Taro leaf with the following TLV values:
 * <code>asset_type</code>: <code>0</code>
 * <code>amt</code>: <code>amt_to_send</code>
 * <code>asset_script_version</code>: <code>0</code>
-* <code>asset_script_key: <code>asset_script_key>
+* <code>asset_script_key</code>: <code>asset_script_key</code>
+* <code>asset_key_family</code>: <code>asset_key_family</code>
 
 Create a valid tapscript root, using leaf version <code>0x0c</code> with the
 sole leaf being the serialized TLV blob specified above.
@@ -78,7 +110,7 @@ program, as specified in BIP 341, using the included key as the internal key.
 
 With the target taproot public key script constructed, the asset is sent to the
 receiver with the execution of the following steps:
-# Construct a valid transaction that spends an input that holds the referenced <code>asset_id</code> and ''at least'' <code>amt</code> units of the asset.
+# Construct a valid transaction that spends an input that holds the referenced <code>asset_id</code> and ''exactly'' <code>amt</code> units of the asset.
 # Create a new Taro output commitment based on the input commitment (this will be the change output), that now only commits to <code>S-A</code> units of <code>asset_id</code>, where <code>S</code> is the input amount, and <code>A</code> is the amount specified in the encoded Taro address.
 ## This new leaf MUST have a <code>split_commitment</code> specified that commits to the position (keyed by <code>sha256(output_index || asset_id || asset_script_key)</code> within the transaction of the newly created asset leaf for the receiver.
 ## Add an additional output that sends a de minimis (in practice this MUST be above dust) amount to the top-level taproot public key computed earlier.
