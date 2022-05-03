@@ -95,6 +95,48 @@ build_empty_hash_map() -> map[int][32]byte:
 
 </source>
 
+====Node Digest Computation===
+
+The MS-SMT tree has two types of nodes: leaf nodes and branch nodes.
+
+The digest of a leaf node is a function of the <code>sum_value</code> (encoded
+as a big-endian integer) of the leaf node and it's actual <code>value</code>:
+
+<source lang="python">
+leaf_node_digest(leaf_node: MerkleSumLeaf) -> [32]byte:
+    h = new_sha_writer()
+    h.write_bytes(leaf_node.value)
+    h.write_big_endian_int(leaf_node.sum_value)
+
+    return h.bytes()
+</source>
+
+The digest of a branch node commits to the digest of its two children (which
+may be another branch or a leaf), and also commits to the _sum_ of their
+respective <code>sum_value</code>s:
+
+<source lang="python">
+node_digest(node: Node) -> [32]byte
+    match node:
+        case MerkleSumLeaf:
+            return leaf_node_digest(node)
+
+        case MerkleSumBranch:
+            return branch_node_digest(node)
+
+branch_node_digest(left: Node, right: Node) -> [32]byte
+    left_digest = node_digest(left)
+    right_digest = node_digest(right)
+    new_sum = left.sum_value() + right_sum_value()
+
+    h = new_sha_writer()
+    h.write_bytes(left_digest)
+    h.write_bytes(right_digest)
+    h.write_big_endian_int(new_sum)
+
+    return h.bytes()
+</source>
+
 ====Looking Up Items====
 
 Looking up an item in the tree requires traversal down the tree based on the
