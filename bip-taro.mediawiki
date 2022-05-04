@@ -464,10 +464,13 @@ An asset leaf is a serialized TLV blob, with the following key-value mappings:
 * type: 3 (<code>amt</code>)
 ** value: 
 *** [<code>BigSize</code>:<code>amt</code>]
-* type: 3 (<code>lock_time</code>)
+* type: 4 (<code>lock_time</code>)
 ** value: 
 *** [<code>BigSize</code>:<code>block_height</code>]
-* type: 4 (<code>prev_asset_witnesses</code>)
+* type: 5 (<code>relative_lock_time</code>)
+** value: 
+*** [<code>BigSize</code>:<code>num_relative_blocks</code>]
+* type: 6 (<code>prev_asset_witnesses</code>)
 ** value: 
 *** [<code>u16</code>:<code>num_inputs</code>][<code>asset_witnesses...</code>], where:
 **** [<code>...*byte</code>:<code>asset_witnesses</code>]:
@@ -478,15 +481,15 @@ An asset leaf is a serialized TLV blob, with the following key-value mappings:
 ******* value: [<code>...*byte</code>:<code>asset_witness</code>]
 ****** type: 2 (<code>split_commitment_proof</code>)
 ******* value: [<code>...*byte</code>:<code>split_proof</code>]
-* type: 5 (<code>split_commitment</code>)
+* type: 7 (<code>split_commitment</code>)
 ** value: [<code>32*byte</code>:<code>split_commitment_root</code>]
-* type: 6 (<code>asset_script_version</code>)
+* type: 8 (<code>asset_script_version</code>)
 ** value: 
 *** [<code>u16</code>:<code>script_version</code>]
-* type: 7 (<code>asset_script_key</code>)
+* type: 9 (<code>asset_script_key</code>)
 ** value: 
 *** [<code>33*byte</code>:<code>pub_key</code>]
-* type: 8 (<code>asset_family_key</code>)
+* type: 10 (<code>asset_family_key</code>)
 ** value: 
 *** [<code>96*byte</code>:<code>pub_key || schnorr_sig</code>]
 
@@ -499,6 +502,7 @@ where:
 ** <code>1</code>: a collectible asset
 * <code>amt</code>: is the amount of the asset held in this leaf position
 * <code>lock_time</code>: is a field that restricts ''when'' an asset can be moved based on the included block height.
+* <code>relative_lock_time</code>: is a field that restricts ''when'' an asset can be moved based on a number of blocks that needs to passed from the mining of the outer transaction.
 * <code>prev_asset_witnesses</code>: is a ''nested'' TLV that contains the asset witnesses needed to verify the merging into the target asset leaf
 ** <code>prev_asset_id</code>: references the previous asset input by the input position within the transaction, the asset ID of the previous asset tree, and the asset script hash.
 *** This value is included in any signatures generated within the asset witness itself, serving a purpose similar to the previous outpoint in vanilla Bitcoin.
