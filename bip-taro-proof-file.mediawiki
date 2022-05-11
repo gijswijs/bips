@@ -65,8 +65,11 @@ where:
 * <code>previous_outpoint</code>: is the 36-byte outpoint of the Taro-committed output being spent. If this is the very first proof, then this value will be the "genesis outpoint" for the given asset.
 * <code>block_header</code>: is the 80-byte block header that includes a spend of the above outpoint.
 * <code>merkle_inclusion_proof</code>: is the merkle inclusion proof of the transaction spending the <code>previous_outpoint</code>. This is serialized with a <code>BigSize</code> length prefix as:
-** <code>length_of_proof || serialized_proof</code>
-** The <code>serialized_proof</code> in BIP 37 format. (TODO(roasbeef): only ever proving one at a time, can roll something new here?)
+** <code>proof_node_count || serialized_proof || proof_direction_bits</code>
+** where:
+*** <code>proof_node_count</code> is a <code>BigSize</code> integer specifying the number of nodes in the proof.
+*** <code>serialized_proof</code> is <code>proof_node_count*32</code> bytes for the proof path.
+*** <code>proof_direction_bits</code> is a bitfield of size <code>length_of_proof</code> with a value of <code>0</code indicating a left direction, and <code>1</code> indicating a right direction.
 * <code>anchor_transaction</code>: is the transaction spending the <code>previous_outpoint</code>. This transaction commits to at least a single Taro asset tree within one of its outputs.
 * <code>tlv_proof_map</code>: stores the Taro-specific information needed to verify the structure of commitments as well as Taro-level state transitions. 
 
