@@ -45,6 +45,8 @@ in the past history of the asset:
 ** A valid merkle proof of a transaction which spends the outpoint referenced in the prior step.
 ** A valid MS-SMT opening proving the commitment of the new location of the asset.
 ** A valid asset witness state transition from the prior outpoint to the new location.
+** A valid cannonical Taro asset commitment exists for the given asset.
+** If the transaction anchoring the state transition has other outputs, then a valid tapscript exclusion proof to prove that the commitment isn't duplicated elsewhere.
 
 ===Specification===
 
@@ -58,11 +60,63 @@ its the genesis outpoint.
 
 ====File Serialization====
 
-A single inclusion and state transition proof has the following format:
-* <code>previous_outpoint || block_header || merkle_inclusion_proof || anchor_transaction || tlv_proof_map</code>
+A single inclusion and state transition proof has the following format is a TLV
+blob with the following format:
+* type: 0 (<code>prev_out</code>)
+** value: 
+*** [<code>36*byte</code>:<code>txid || output_index</code>]
+* type: 1 (<code>block_header</code>)
+** value: 
+*** [<code>80*byte</code>:<code>bitcoin_header</code>]
+* type: 2 (<code>anchor_tx</code>)
+** value: 
+*** [<code>...*byte</code>:<code>serialized_bitcoin_tx</code>]
+* type: 3 (<code>anchor_tx_merkle_proof</code>)
+** value: 
+*** [<code>...*byte</code>:<code>merkle_inclusion_proof</code>]
+* type: 4 (<code>taro_asset_leaf</code>)
+** value: 
+*** [<code>tlv_blob</code>:<code>serialized_tlv_leaf</code>]
+* type: 5 (<code>taro_inclusion_proofs</code>)
+** value: 
+*** [<code>...*byte</code>:<code>taro_taproot_proof</code>]
+**** type: 0 (<code>output_index</code>
+***** value: [<code>int32</code>:<code>index</code>]
+**** type: 1 (<code>internal_key</code>
+***** value: [<code>33*byte</code>:<code>y_parity_byte || schnorr_x_only_key</code>]
+**** type: 2 (<code>taproot_asset_proof</code>)
+***** value: [<code>...*byte</code>:<code>asset_proof</code>]
+****** type: 0 (<code>taro_asset_proof</code>)
+******* value: [<code>...*byte</code>:<code>asset_inclusion_proof</code>]
+******* type: 0
+******** value: [<code>uint32</code>:<code>proof_version</code>]
+******* type: 1
+******** value: [<code>32*byte</code>:<code>asset_id</code>]
+******* type: 2
+******** value: [<code>...*byte</code>:<code>ms_smt_inclusion_proof</code>]
+****** type: 1 (<code>taro_inclusion_proof</code>)
+******* value: [<code>...*byte</code>:<code>taro_inclusion_proof</code>]
+******* type: 0
+******** value: [<code>uint32</code>:<code>proof_version</code>]
+******* type: 1
+******** value: [<code>...*byte</code>:<code>ms_smt_inclusion_proof</code>]
+******* type: 2 (<code>taproot_sibling_preimage</code>)
+******** value: [<code>...*byte</code>:<code>tapscript_preimage</code>]
+**** type: 3 (<code>taro_commitment_exclusion_proof</code>
+***** value: [<code>...*byte</code>:<code>taproot_exclusion_proof</code>]
+****** type: 0 (<code>tap_image_1</code>)
+******* value: [<code>...*byte</code>:<code>tapscript_preimage</code>]
+****** type: 1 (<code>tap_image_2</code>)
+******* value: [<code>...*byte</code>:<code>tapscript_preimage</code>]
+* type: 6 (<code>taproot_exclusion_proofs</code>)
+** value: 
+*** [<code>uint16</code>:<code>num_proofs</code>][<code>...*byte</code>:<code>taro_taproot_proof</code>]
+* type: 7 (<code>taro_input_splits</code>)
+** value:
+*** [<code>...*byte</code>:<code>nested_proof_map</code>]
 
 where:
-* <code>previous_outpoint</code>: is the 36-byte outpoint of the Taro-committed output being spent. If this is the very first proof, then this value will be the "genesis outpoint" for the given asset.
+* <code>prev_out</code>: is the 36-byte outpoint of the Taro-committed output being spent. If this is the very first proof, then this value will be the "genesis outpoint" for the given asset.
 * <code>block_header</code>: is the 80-byte block header that includes a spend of the above outpoint.
 * <code>merkle_inclusion_proof</code>: is the merkle inclusion proof of the transaction spending the <code>previous_outpoint</code>. This is serialized with a <code>BigSize</code> length prefix as:
 ** <code>proof_node_count || serialized_proof || proof_direction_bits</code>
@@ -70,36 +124,14 @@ where:
 *** <code>proof_node_count</code> is a <code>BigSize</code> integer specifying the number of nodes in the proof.
 *** <code>serialized_proof</code> is <code>proof_node_count*32</code> bytes for the proof path.
 *** <code>proof_direction_bits</code> is a bitfield of size <code>length_of_proof</code> with a value of <code>0</code indicating a left direction, and <code>1</code> indicating a right direction.
-* <code>anchor_transaction</code>: is the transaction spending the <code>previous_outpoint</code>. This transaction commits to at least a single Taro asset tree within one of its outputs.
-* <code>tlv_proof_map</code>: stores the Taro-specific information needed to verify the structure of commitments as well as Taro-level state transitions. 
-
-The <code>tlv_proof_map</code> has the following defined types:
-* type: 0 (<code>asset_output_pos</code>)
-** value: 
-*** [<code>uint32</code>:<code>output_index</code>]
-* type: 1 (<code>internal_key</code>)
-** value: 
-*** [<code>32*byte</code>:<code>internal_key_schnorr</code>]
-* type: 2 (<code>taro_asset_leaf</code>)
-** value: 
-*** [<code>tlv_blob</code>:<code>serialized Taro asset leaf</code>]
-* type: 3 (<code>asset_leaf_proof</code>)
-** value:
-*** [<code>...*byte</code>:<code>serialized_ms_smt_proof</code>]
-* type: 4 (<code>split_commitment_opening</code>)
-** value:
-*** [<code>...*byte</code>:<code>serialized_ms_smt_proof</code>]
-
-where:
-* <code>asset_output_pos</code>: is the output index that holds the Taro asset commitment that spends the prior asset commitment .
-* <code>taro_asset_leaf</code>: is the serialized TLV asset leaf resulting from a valid spend of the asset held at the <code>previous_outpoint</code>.
-* <code>asset_leaf_proof</code>: is the revealed proof of the Taro asset leaf above, anchored in the <code>anchor_transaction</code> at the taproot output specified by <code>asset_output_pos</code>.
-* <code>split_commitment_opening</code>: is a valid split commitment opening for the <code>taro_asset_leaf</code> when the asset leaf was the output of the split of the asset spent at <code>previous_outpoint</code>.
+* <code>anchor_tx</code>: is the transaction spending the <code>previous_outpoint</code>. This transaction commits to at least a single Taro asset tree within one of its outputs.
+* <code>taro_taproot_proof</code>: is a nested TLV that can be used to prove either inclusion or a taro asset, or the lack of a taro commitment via the <code>taro_commitment_exclusion_proof</code>.
+* <code>taproot_exclusion_proofs</code>: is a series of _exclusion_ proofs that prove that the other outputs in a transaction don't commit to a valid taro asset. This re-uses the <code>taro_taproot_proof</code> structure, but will only contain an <code>taro_commitment_exclusion_proof</code> value and not also a <code>taro_taproot_proof</code> value.
 
 The final flat proof file has the following format:
 * <code>file_sum</code>: 32-bytes - 256 sum over the remaining contents of the file
 * <code>file_version</code>: 4-bytes - version of proof file
-* <code>taro_proofs</code>: <code>BigSize</code> length prefixed serialized proofs
+* <code>taro_proofs</code>:<code>BigSize</code> length prefixed serialized proofs
 
 // TODO(roasbeef): make the file_sum instead an MMR over the set? allows for probabilistic verification of file, prove certain transition fragments
 
