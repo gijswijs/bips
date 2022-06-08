@@ -14,7 +14,7 @@
 ==Abstract==
 
 This document describes a way to map a single-asset Taro send to a familiar
-<code>bech32</code> address, as well as a way to map that address into a valid
+<code>bech32m</code> address, as well as a way to map that address into a valid
 Taro script tree that can be included in a broadcast transaction to complete a
 transfer. Once the transaction has been broadcast, the receiver can use the
 previous outpoint of the confirmed transaction to lookup the complete asset
@@ -28,7 +28,7 @@ This document is licensed under the 2-clause BSD license.
 
 The Taro protocol needs an easy way to allow users to send each other assets
 on-chain, without requiring several rounds of interaction to exchange and
-validate proofs. By using the existing <code>bech32</code> address
+validate proofs. By using the existing <code>bech32m</code> address
 serialization standard, such addresses look distinct, while also looking
 familiar enough based on the character set encoding. The described address
 format also addresses a number of possible foot guns, by making it impossible
@@ -54,7 +54,7 @@ We refer to this value as the <code>taro_hrp</code>
 Given the 32-byte <code>asset_id</code>, 32-byte
 <code>asset_script_key</code>, and 32-byte x-only BIP 340/341 internal public
 key, 8-byte amount to send, an address is encoded as:
-* <code>bech32(hrp=taro_hrp, addr_tlv_payload)</code>
+* <code>bech32m(hrp=taro_hrp, addr_tlv_payload)</code>
 
 where <code>addr_tlv_payload</code> is a TLV payload composed of the following
 types:
