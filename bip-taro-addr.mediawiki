@@ -58,22 +58,25 @@ key, 8-byte amount to send, an address is encoded as:
 
 where <code>addr_tlv_payload</code> is a TLV payload composed of the following
 types:
-* type: 0 (<code>asset_id</code>)
+* type: 0 (<code>taro_version</code>)
+** value:
+*** [<code>u8</code>:<code>version</code>]
+* type: 2 (<code>asset_id</code>)
 ** value:
 *** [<code>32*byte</code>:<code>asset_to_send</code>]
-* type: 1 (<code>asset_key_family</code>)
+* type: 3 (<code>asset_key_family</code>)
 ** value:
 *** [<code>32*byte</code>:<code>family_key</code>]
-* type: 2 (<code>asset_script_key</code>)
+* type: 4 (<code>asset_script_key</code>)
 ** value:
 *** [<code>32*byte</code>:<code>script_key</code>]
-* type: 4 (<code>internal_key</code>)
+* type: 6 (<code>internal_key</code>)
 ** value:
 *** [<code>32*byte</code>:<code>taproot_internal_key</code>]
-* type: 6 (<code>amt</code>)
+* type: 8 (<code>amt</code>)
 ** value:
 *** [<code>BigSize</code>:<code>amt_to_send</code>]
-* type: 7 (<code>asset_type</code>)
+* type: 9 (<code>asset_type</code>)
 ** value:
 *** [<code>byte</code>:<code>asset_type</code>]
 
