@@ -385,10 +385,21 @@ MS-SMT is structured as follows:
 
 Similar to the <code>asset_id</code>, the <code>asset_key_family</code> is
 derived using the first input outpoint as a sort of chain randomness to ensure
-uniqueness within the system. Given a <code>genesis_outpoint</code> and a
-public key <code>asset_key_internal</code>, then <code>asset_key_family</code>
-is derived as follows:
-* <code>asset_key_family</code> = <code>asset_key_internal + sha256(asset_key_internal || genesis_outpoint)</code>
+uniqueness within the system as well as the output index and asset type to
+prevent collisions.
+The <code>asset_key_family</code> is derived as follows:
+* <code>asset_key_family</code> = <code>asset_key_internal +
+   sha256(asset_key_internal || genesis_outpoint || output_index || asset_type)
+   </code>
+
+where:
+* <code>asset_key_internal</code> is a 32-byte public key as defined by
+  [[../master/bip-0340.mediawiki|BIP-340]]
+* <code>genesis_outpoint</code> is the first previous input outpoint used in the
+  asset genesis transaction serialized in Bitcoin wire format.
+* <code>output_index</code> (4 byte, big-endian) is the index  of the output
+  which contains the unique Taro commitment in the genesis transaction. 
+* <code>asset_type</code> (1 byte) is the type of the asset being minted.
 
 The top level tree can be easily used to prove the existence of a set of given
 assets, the total amount of asset units held, as well as the sum of a given
@@ -411,7 +422,10 @@ or
 * <code>asset_tree_root = sha256(asset_key_family || left_hash || right_hash || sum_value)</code>
 
 where:
-* <code>asset_key_family</code> is the 32-byte hash of a public key derived from the genesis outpoint which can be used to collocate assets intended to be fungible with one another (issuing multiple tranches of the same asset) or collectibles.
+* <code>asset_key_family</code> is the 32-byte hash of a public key derived from
+  the genesis outpoint, the output index and asset type, which can be used to
+  collocate assets intended to be fungible with one another (issuing multiple
+  tranches of the same asset) or collectibles.
 * <code>asset_id</code> is the 32-byte asset ID specified above
 * <code>left_hash</code> is the hash of the left sub-tree.
 * <code>right_hash</code> is the hash of the right sub-tree.
