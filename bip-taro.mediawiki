@@ -231,8 +231,8 @@ where:
 * <code>genesis_outpoint</code> is the first previous input outpoint used in the asset genesis transaction serialized in Bitcoin wire format.
 * <code>asset_tag</code> is a random 32-byte value that represents a given asset, and can be used to link a series of discrete assets into a single asset family. In practice, this will typically be the hash of a human readable asset name.
 * <code>asset_meta</code> is an opaque 32-byte value that can be used to commit to various metadata including external links, documents, stats, attributes, images, etc. Importantly, this field is considered to be ''immutable''.
-* <code>output_index</code> is the index of the output which contains the unique Taro commitment in the genesis transaction. 
-* <code>asset_type</code> is the type of the asset being minted.
+* <code>output_index</code> (4 byte, big-endian) is the index  of the output which contains the unique Taro commitment in the genesis transaction. 
+* <code>asset_type</code> (1 byte) is the type of the asset being minted.
 
 Given the above structure, the <code>asset_id</code> is guaranteed to be
 globally unique from the PoV of the chain, as thanks to
@@ -571,7 +571,7 @@ The following function creates a new valid taproot public key script whose
 internal tapscript tree commits to the representation of the new asset:
 <source lang="python">
 create_new_asset_output(total_units: uint64, asset_tag: [32]byte, 
-    genesis_point: [36]byte, asset_meta: [32]byte, output_index uint8,
+    genesis_point: [36]byte, asset_meta: [32]byte, output_index uint32,
     asset_type: uint8, asset_script_key: [32]byte, taro_attrs: TLV) -> PkScript:
 
     asset_id = sha256(
