@@ -56,21 +56,21 @@ updates.
 
 An Asset Universe is a publicly audit able merkle-sum sparse merkle tree
 (MS-SMT) over one or several assets. Unlike the normal Taro asset tree, a
-Universe doesn't itself live within a solely controlled output. Instead a
-Universe may exist on its own as a distinct output. A close analogue to a
-public Universe is a block explorer. A Universe can be used to:
-* bootstrap proof verification by committing to the set of genesis outputs
-* generate more compact proofs w/ an additional trust assumption
-* audit to the total amount of units in existence for a given asset
-* track new asset issuance for a given asset ID
+Universe isn't used to custody Taro assets.  Instead, a Universe commits to a
+subset of the history of one, or many assets.  A close analogue to a public
+Universe is a block explorer. A Universe can be used to:
+* Bootstrap proof verification by committing to the set of genesis outputs.
+* Generate more compact proofs w/ an additional trust assumption.
+* Audit to the total amount of units in existence for a given asset.
+* Track new asset issuance for a given asset ID.
 
 Universes can also be used to essentially compress the history of a series of
-transfers into a single on-chain transaction. From this PoV, a Universe can be
-seen as a sort of Taro asset channel wherein one party (or a
-consortium/threshold of them) can batch update a tree to clear countless
-transfers in a single on-chain transaction. Such a Universe can also be created
-over multiple assets, effectively becoming a Universe of Universes, or a
-''Multiverse''.
+transfers into a single on-chain transaction. This variant is called a Pocket
+Universe. From this PoV, a Pocket Universe can be seen as a sort of Taro asset
+channel wherein one party (or a consortium/threshold of them) can batch update
+a tree to clear countless transfers in a single on-chain transaction. Such a
+Universe can also be created over multiple assets, effectively becoming a
+Universe of Universes, or a ''Multiverse''.
 
 During asset creation, the party creating the asset (identified by it's all
 zero <code>prev_asset_id</code> value) MAY also specify a
@@ -92,8 +92,10 @@ to track any modifications.
 ====Primordial Universes & Genesis Asset Verification====
 
 Unlike a normal Taro asset tree, a base Universe for a given asset only commits
-to the set of ''genesis outpoints'' for an asset. As this type of Universe only
-commits to the set of constituent assets present at the Beginning, that all other
+to the set of ''genesis outpoints'' for an asset. The value for each of the
+leaves contains enough information to fully verify the existence of the
+transaction that created the asset. As this type of Universe only commits to
+the set of constituent assets present at the Beginning, that all other
 transfers depend on, we call this a ''Primordial'' Universe.
 
 Such a Universe can be used to bootstrap provenance and proof verification, as
@@ -104,9 +106,76 @@ audit the total amount of a given asset in existence.
 
 A Primordial Universe, is an MS-SMT with the following structure:
 * The MS-SMT root commits to the sum of the total set of issued assets for a given <code>genesisAssetID</code>
-* key: an outpoint, serialized in a <code>txid:vout</code> structure as we find in Bitcoin.
-* value: the initial Taro asset leaf ''created'' by that outpoint (which will always be a <code>genesisOutpoint</code>) along with a merkle-proof which proves the existence a transaction that ''spent'' that output.
-* sum_value: the value of the leaf itself.
+** A <code>genesisAssetID</code> can either be a normal <code>assetID</code> or <code>sha256(asset_key_family)</code>. In the latter case, all values in the tree MUST share the same <code>asset_key_family</code>.
+** <code>key</code>: an outpoint, serialized in a <code>txid:vout</code> structure as we find in Bitcoin.
+** <code>value</code>: <code>universe_proof_leaf</code>
+** <code>sum_value</code>: the total amount of asset units issued by the proof leaf.
+
+A <code>universe_proof_leaf</code>: is a modified
+<code>bip-taro-proof-file.mediawiki</code> state transition with the following
+format:
+* type: 0 (<code>prev_out</code>)
+** value: 
+*** [<code>36*byte</code>:<code>txid || output_index</code>]
+* type: 1 (<code>block_header</code>)
+** value: 
+*** [<code>80*byte</code>:<code>bitcoin_header</code>]
+* type: 2 (<code>anchor_tx</code>)
+** value: 
+*** [<code>...*byte</code>:<code>serialized_bitcoin_tx</code>]
+* type: 3 (<code>anchor_tx_merkle_proof</code>)
+** value: 
+*** [<code>...*byte</code>:<code>merkle_inclusion_proof</code>]
+* type: 4 (<code>taro_asset_leaf</code>)
+** value: 
+*** [<code>tlv_blob</code>:<code>serialized_tlv_leaf</code>]
+* type: 5 (<code>taro_inclusion_proofs</code>)
+** value: 
+*** [<code>...*byte</code>:<code>taro_taproot_proof</code>]
+**** type: 0 (<code>output_index</code>
+***** value: [<code>int32</code>:<code>index</code>]
+**** type: 1 (<code>internal_key</code>
+***** value: [<code>33*byte</code>:<code>y_parity_byte || schnorr_x_only_key</code>]
+**** type: 2 (<code>taproot_asset_proof</code>)
+***** value: [<code>...*byte</code>:<code>asset_proof</code>]
+****** type: 0 (<code>taro_asset_proof</code>)
+******* value: [<code>...*byte</code>:<code>asset_inclusion_proof</code>]
+******* type: 0
+******** value: [<code>uint32</code>:<code>proof_version</code>]
+******* type: 1
+******** value: [<code>32*byte</code>:<code>asset_id</code>]
+******* type: 2
+******** value: [<code>...*byte</code>:<code>ms_smt_inclusion_proof</code>]
+****** type: 1 (<code>taro_inclusion_proof</code>)
+******* value: [<code>...*byte</code>:<code>taro_inclusion_proof</code>]
+******* type: 0
+******** value: [<code>uint32</code>:<code>proof_version</code>]
+******* type: 1
+******** value: [<code>...*byte</code>:<code>ms_smt_inclusion_proof</code>]
+******* type: 2 (<code>taproot_sibling_preimage</code>)
+******** value: [<code>...*byte</code>:<code>tapscript_preimage</code>]
+**** type: 3 (<code>taro_commitment_exclusion_proof</code>
+***** value: [<code>...*byte</code>:<code>taproot_exclusion_proof</code>]
+****** type: 0 (<code>tap_image_1</code>)
+******* value: [<code>...*byte</code>:<code>tapscript_preimage</code>]
+****** type: 1 (<code>tap_image_2</code>)
+******* value: [<code>...*byte</code>:<code>tapscript_preimage</code>]
+* type: 6 (<code>taproot_exclusion_proofs</code>)
+** value: 
+*** [<code>uint16</code>:<code>num_proofs</code>][<code>...*byte</code>:<code>taro_taproot_proof</code>]
+
+Compared to the normal proof file state transition, we omit any referenced
+input splits as asset creation by definition has no inputs.
+
+// TODO(roasbeef): update to include raw value for actual proof format here
+//  * also need to better specify requirements around key families as well
+//  * still go w/ that second output being chained ting?
+
+The leaf value of the Primordial Universe allows verifies to fully verify the
+creation of the asset based on the genesis outpoint spent.
+
+// TODO(roasbeef): psuedo-code here for verification, basically the same as
+// proof files tho?
 
 As the Primordial Universe for a given asset can be known at the initial asset
 creation time, based on the referenced <code>universeKey</code> those wishing
@@ -133,12 +202,34 @@ Importantly, one cannot prove that a Multiverse has complete history, as a
 Multiverse can only commit to what it directly observed, or was shown to it.
 
 A Multiverse has the following structure:
-* The MS-SMT root commits to the sum, of the sum of the total number of asset units committed to.
-** Notice that this will commit to the same sum as the set of Primordial Universes for each given asset (if no additional history is included).
-* The top-level key for the MS-SMT is the <code>asset_id</code>, with the value being the MS-SMT root for the given asset root.
-** The sum value here is the sum value carried up from the sub-tree.
-** The key of this sub MS-SMT is similar to that of a Primordial Universe: a <code>txid:vout</code> outpoint.
-*** The value stored is the asset leaf, along with a merkle-proof that proves the existence of the transaction that ''spent'' that output.
+* Similar to normal Taro asset commitments, the Multiverse itself contains two nested MS-SMT trees. The upper tree commits to the set of asset groups observed, with the inner tree committing to the transaction history of each of the asset groups.
+* Upper tree structure:
+** <code>key</code>: <code>asset_id</code> or <code>sha256(asset_key_family)</code>
+** <code>value</code>: <code>asset_group_tree_root || asset_group_sum</code>
+** <code>sum_value</code>: <code>asset_group_sum</code>
+* Inner tree structure: 
+** <code>key</code>: an outpoint, serialized in a <code>txid:vout</code> structure as we find in Bitcoin.
+** <code>value</code>: <code>multiverse_proof_leaf</code>
+** <code>sum_value</code>: the total amount of asset units issued by the proof leaf.
+
+where:
+* <code>multiverse_proof_leaf</code>: is identical to the <code>universe_proof_leaf</code> with the addition of the <code>split_commitment_root</code> type to facilitate non-interactive asset transfers:
+** type: 7 (<code>split_commit_proofs</code>)
+*** value:
+**** [<code>uint16</code>:<code>num_splits</code>][<code>...*byte</code>:<code>split_locator</code>]
+***** [<code>...*byte</code>:<code>split_locator</code>]
+****** type: 0 (<code>output_index</code>)
+******* value: 
+******** [<code>BigSize</code>:<code>output_index</code>]
+****** type: 1 (<code>split_commit_proof</code>)
+******* value: 
+******** [<code>...*byte</code>:<code>ms_smt_inclusion_proof</code>]
+
+Each specified <code>split_locator</code> contains an MS-SMT proof rooted at
+the <code>split_commitment_root</code> value of the asset being spent. This
+extra key-value pair allows those receiving an asset non-interactively to
+obtain the split commitment proof, which is needed to construct a valid witness
+which can be verified by 3rd parties.
 
 With this structure, it's possible for the maintainers of the Multiverse to
 also store subjectively complete history of the set of transfers. In addition,
@@ -179,6 +270,11 @@ chain.  Pocket Universes may be useful in cases where a party has issued
 assets, that can only be used with the aide of the issuer, for example in-game
 assets.
 
+// TODO(roasbeef):
+//  * finish specifying
+//  * actually two commitments -- actual wallet then universe commitment
+//  * also in same output, diff verification needed for clients
+
 =====Taro Virtual Transaction Graphs=====
 
 Assets can be moved into a pocket Universe which is another commitment in the
@@ -197,6 +293,10 @@ an effective ''freezing'' of assets anchored in the main chain, which then
 permits them to be batched and transferred in the maintained Pocket Universe.
 
 ====Asset Universe APIs & Federated Sync====
+
+# TODO(roasbeef):
+#  * define gRPC service  
+#  * REST mapping for that
 
 ==Test Vectors==
 
