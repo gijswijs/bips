@@ -111,7 +111,10 @@ blob with the following format:
 * type: 6 (<code>taproot_exclusion_proofs</code>)
 ** value: 
 *** [<code>uint16</code>:<code>num_proofs</code>][<code>...*byte</code>:<code>taro_taproot_proof</code>]
-* type: 7 (<code>taro_input_splits</code>)
+* type: 7 (<code>split_root_proof</code>)
+** value:
+*** [<code>...*byte</code>:<code>taro_taproot_proof</code>]
+* type: 8 (<code>taro_input_splits</code>)
 ** value:
 *** [<code>...*byte</code>:<code>nested_proof_map</code>]
 
@@ -127,6 +130,8 @@ where:
 * <code>anchor_tx</code>: is the transaction spending the <code>previous_outpoint</code>. This transaction commits to at least a single Taro asset tree within one of its outputs.
 * <code>taro_taproot_proof</code>: is a nested TLV that can be used to prove either inclusion or a taro asset, or the lack of a taro commitment via the <code>taro_commitment_exclusion_proof</code>.
 * <code>taproot_exclusion_proofs</code>: is a series of _exclusion_ proofs that prove that the other outputs in a transaction don't commit to a valid taro asset. This re-uses the <code>taro_taproot_proof</code> structure, but will only contain an <code>taro_commitment_exclusion_proof</code> value and not also a <code>taro_taproot_proof</code> value.
+* <code>split_root_proof</code>: is an optional <code>taro_taproot_proof</code> that proves the inclusion of the split commitment's root asset in case of an asset split.
+* <code>taro_input_splits</code>: is an optional list of nested full proofs for any additional inputs found within the resulting asset.
 
 The final flat proof file has the following format:
 * <code>file_sum</code>: 32-bytes - 256 sum over the remaining contents of the file
@@ -160,6 +165,7 @@ Given a proof file for a given asset <code>f_proof</code>, genesis outpoint
 ## Verify that the <code>asset_leaf_proof</code> embeds the <code>taro_asset_leaf</code> at the outpout rooted at the <code>asset_output_pos</code> using the specified <code>internal_key</code> to compute the taproot commitment.
 ## Verify that the asset witness included at the <code>prev_asset_witness<code> field of the <code>taro_asset_leaf</code> is valid based on the specific <code>asset_script_version</code>
 ## If a <code>split_commitment_opening</code> is present, verify that the included leaf is a valid opening rooted at the <code>taro_asset_leaf</code>'s <code>split_commitment_root</code> field.
+## If a <code>split_commitment_opening</code> is present, verify that an inclusion proof for the <code>split_commitment_root</code>'s leaf is present in <code>split_root_proof</code>.
 
 A psuedo-code routine for flat file verification follows:
 <source lang="python">
@@ -206,6 +212,13 @@ verify_asset_file_proof(file_proof []byte, genesis_outpoint OutPoint,
             if !verify_split_commitment(
                 proof_tlv_map.taro_asset_leaf, 
                 proof_tlv_map.split_commitment_opening,
+            ):
+                return false
+            
+            if !verify_asset_tree_proof(
+                txn,
+                proof_tlv_map.split_commitment_opening.split_commitment_root,
+                proof_tlv_map.split_root_proof,
             ):
                 return false
 
