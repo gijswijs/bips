@@ -389,16 +389,16 @@ uniqueness within the system as well as the output index and asset type to
 prevent collisions.
 The <code>asset_key_family</code> is derived as follows:
 * <code>asset_key_family</code> = <code>asset_key_internal +
-   sha256(asset_key_internal || genesis_outpoint || output_index || asset_type)
-   </code>
+sha256(asset_key_internal || genesis_outpoint || output_index || asset_type)
+</code>
 
 where:
 * <code>asset_key_internal</code> is a 32-byte public key as defined by
-  [[../master/bip-0340.mediawiki|BIP-340]]
+[[../master/bip-0340.mediawiki|BIP-340]]
 * <code>genesis_outpoint</code> is the first previous input outpoint used in the
-  asset genesis transaction serialized in Bitcoin wire format.
+asset genesis transaction serialized in Bitcoin wire format.
 * <code>output_index</code> (4 byte, big-endian) is the index  of the output
-  which contains the unique Taro commitment in the genesis transaction. 
+which contains the unique Taro commitment in the genesis transaction. 
 * <code>asset_type</code> (1 byte) is the type of the asset being minted.
 
 The top level tree can be easily used to prove the existence of a set of given
@@ -423,9 +423,9 @@ or
 
 where:
 * <code>asset_key_family</code> is the 32-byte hash of a public key derived from
-  the genesis outpoint, the output index and asset type, which can be used to
-  collocate assets intended to be fungible with one another (issuing multiple
-  tranches of the same asset) or collectibles.
+the genesis outpoint, the output index and asset type, which can be used to
+collocate assets intended to be fungible with one another (issuing multiple
+tranches of the same asset) or collectibles.
 * <code>asset_id</code> is the 32-byte asset ID specified above
 * <code>left_hash</code> is the hash of the left sub-tree.
 * <code>right_hash</code> is the hash of the right sub-tree.
