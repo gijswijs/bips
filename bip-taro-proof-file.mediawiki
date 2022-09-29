@@ -134,11 +134,12 @@ where:
 * <code>taro_input_splits</code>: is an optional list of nested full proofs for any additional inputs found within the resulting asset.
 
 The final flat proof file has the following format:
-* <code>file_sum</code>: 32-bytes - 256 sum over the remaining contents of the file
-* <code>file_version</code>: 4-bytes - version of proof file
-* <code>taro_proofs</code>:<code>BigSize</code> length prefixed serialized proofs
-
-// TODO(roasbeef): make the file_sum instead an MMR over the set? allows for probabilistic verification of file, prove certain transition fragments
+* [<code>u32</code>:<code>file_version</code>] version of proof file
+* [<code>BigSize</code>:<code>num_proofs</code>] number of proofs contained in the file
+* [<code>num_proof*proof</code>:<code>proofs</code>] encoded proofs
+** [<code>BigSize</code>:<code>proof_len</code>] length of encoded proof
+** [<code>proof_len*byte</code>:<code>proof_tlv_bytes</code>] a single proof encoded as a TLV stream as defined above
+** [<code>32*byte</code>:<code>proof_checksum</code>] the checksum of the proof, which is <code>SHA256(prev_hash || proof_tlv_bytes)</code> where <code>prev_hash</code> is the checksum of the previous proof or a zero hash for the first proof.
 
 ====Proof Verification====
 
@@ -151,9 +152,9 @@ violations, the proof is said to be valid.
 Given a proof file for a given asset <code>f_proof</code>, genesis outpoint
 <code>g</code> verification is defined as follows:
 # Verify the integrity of the proof file:
-## Extract the 32-byte <code>file_sum</code> prefix. 
-## Compute the <code>sha256</code> over the remainder of the file.
-## If this computed value doesn't match <code>file_sum</code>, verification fails.
+## For each proof, extract the <code>proof_len</code>, <code>proof_len</code> number of bytes as <code>proof_tlv_bytes</code> and 32 bytes <code>proof_checksum</code>.
+## Compute <code>SHA256(prev_hash || proof_tlv_bytes)</code> where <code>prev_hash</code> is the <code>proof_checksum</code> of the previous proof or a 32-byte zero hash for the first proof in a file.
+## If this computed value doesn't match <code>proof_checksum</code>, verification fails.
 # Verify each inclusion proof and state transition:
 ## Parse the next proof block from the flat file.
 ## If this is the first proof to be verified:
@@ -172,15 +173,15 @@ A psuedo-code routine for flat file verification follows:
 verify_asset_file_proof(file_proof []byte, genesis_outpoint OutPoint, 
     assetID [32]byte) -> bool
 
-    file_sum = read(num_bytes=32, file_proof)
-    sha_sum = sh256(drop(bytes_to_drop=32, file_proof))
-    if file_sum != sha_sum:
-        return false
-
     genesis_outpoint, prev_outpoint = None
     file_reader = new_bytes_reader(file_proof)
+    prev_hash = bytes(32)
     while file_reader.len() != 0:
         proof_block = parse_proof_block(file_reader)
+
+        sha_sum = sh256(prev_hash + proof_block.bytes())
+        if proof_block.proof_checksum != sha_sum:
+            return false
 
         if genesis_outpoint is None:
             genesis_outpoint = proof_block.previous_outpoint
