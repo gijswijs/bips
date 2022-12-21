@@ -207,7 +207,7 @@ The Taproot Asset tree is a core component of the system. An asset tree is an
 MS-SMT commitment to a series of asset identifiers, grouped by their genesis
 asset ID. A given Taproot Asset tree is composed of two nested MS-SMT instances:
 
-# The first level maps an <code>asset_id</code> or <code>asset_key_family</code> to a sub-tree root hash of a given asset.
+# The first level maps an <code>asset_id</code> or <code>asset_group_key</code> to a sub-tree root hash of a given asset.
 # The second level maps an <code>asset_script_key</code> or <code>asset_id || asset_script_key</code> to a serialized Taproot Asset leaf.
 
 The root hash of an asset tree, observing [[../master/bip-0341.mediawiki|BIP-341]] is
@@ -389,16 +389,16 @@ verifiers can obtain all the relevant data for a given asset.
 The top-level MS-SMT commits to the set of all held defined assets. The root hash
 of this MS-SMT tree is referred to as the <code>asset_tree_root</code>. The
 MS-SMT is structured as follows:
-* key: <code>asset_id</code> or <code>asset_key_family</code>
+* key: <code>asset_id</code> or <code>asset_group_key</code>
 * value: <code>taproot_asset_version || asset_id_tree_root || asset_sum</code>
 * sum_value: <code>asset_sum</code>
 
-Similar to the <code>asset_id</code>, the <code>asset_key_family</code> is
+Similar to the <code>asset_id</code>, the <code>asset_group_key</code> is
 derived using the first input outpoint as a sort of chain randomness to ensure
 uniqueness within the system as well as the output index and asset type to
 prevent collisions.
-The <code>asset_key_family</code> is derived as follows:
-* <code>asset_key_family</code> = <code>asset_key_internal +
+The <code>asset_group_key</code> is derived as follows:
+* <code>asset_group_key</code> = <code>asset_key_internal +
 sha256(asset_key_internal || genesis_outpoint || output_index || asset_type)
 </code>
 
@@ -423,16 +423,16 @@ the following structure:
 
 Within the MS-SMT held by the tree rooted at a given
 <code>asset_id_tree_root</code>, a new Taproot Asset MS-SMT is created for each
-<code>asset_id</code> or <code>asset_key_family</code>an output holds. The
+<code>asset_id</code> or <code>asset_group_key</code>an output holds. The
 leaves of the MS-SMT are keyed by the <code>asset_script_key</code> or
 <code>asset_id || asset_script_key</code> unlocking script. The root hash of
 the asset tree is calculated as either: 
 * <code>asset_tree_root = sha256(asset_id || left_hash || right_hash || sum_value)</code>
 or 
-* <code>asset_tree_root = sha256(asset_key_family || left_hash || right_hash || sum_value)</code>
+* <code>asset_tree_root = sha256(asset_group_key || left_hash || right_hash || sum_value)</code>
 
 where:
-* <code>asset_key_family</code> is the 32-byte hash of a public key derived from
+* <code>asset_group_key</code> is the 32-byte hash of a public key derived from
 the genesis outpoint, the output index and asset type, which can be used to
 collocate assets intended to be fungible with one another (issuing multiple
 tranches of the same asset) or collectibles.
@@ -446,15 +446,15 @@ given asset allows asset holders to easily prove how much of a given asset they
 own, which when combined with the asset creation and "Universe" concept, allow
 for a built-in mechanism of proof of reserves.
 
-The usage of the <code>asset_key_family</code> (as we'll see below) allows
+The usage of the <code>asset_group_key</code> (as we'll see below) allows
 issuers to collocate assets intended to be fungible with each other within the
-same asset sub tree. The derivation of the <code>asset_key_family</code>
+same asset sub tree. The derivation of the <code>asset_group_key</code>
 ensures that similar to the <code>asset_id</code> this value is globally unique
-within the chain. Assets that don't specify an <code>asset_key_family</code>
+within the chain. Assets that don't specify an <code>asset_group_key</code>
 use a slightly different schema to key into the main MS-SMT, and can only be
 issued in a single batch.
 
-When an <code>asset_key_family</code> is specified during asset
+When an <code>asset_group_key</code> is specified during asset
 issuance/minting, similar to the top level-SMT, the internal MS-SMT modifies
 its internal key to also factor in the derived <code>asset_id</code> for each
 asset. As a result, the lowest level key factors in the <code>asset_id</code>
