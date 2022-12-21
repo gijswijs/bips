@@ -231,7 +231,7 @@ An <code>asset_id</code> is the 32-byte hash of:
 
 where:
 * <code>genesis_outpoint</code> is the first previous input outpoint used in the asset genesis transaction serialized in Bitcoin wire format.
-* <code>asset_tag</code> is a random 32-byte value that represents a given asset, and can be used to link a series of discrete assets into a single asset family. In practice, this will typically be the hash of a human readable asset name.
+* <code>asset_tag</code> is a random 32-byte value that represents a given asset, and can be used to link a series of discrete assets into a single asset group. In practice, this will typically be the hash of a human readable asset name.
 * <code>asset_meta_hash</code> is an opaque 32-byte value that can be used to commit to various metadata including external links, documents, stats, attributes, images, etc. Importantly, this field is considered to be ''immutable''.
 ** The genesis asset proof MUST contain the preimage of the <code>asset_meta_hash</code>, which allows verifiers to obtain the committed data and also verify the sha2 preimage.
 * <code>output_index</code> (4 byte, big-endian) is the index  of the output which contains the unique Taproot Asset commitment in the genesis transaction. 
