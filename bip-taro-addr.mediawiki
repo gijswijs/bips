@@ -67,8 +67,7 @@ types:
 *** [<code>u32</code>:<code>first_prev_out_index</code>]
 *** [<code>BigSize</code>:<code>tag_len</code>]
 *** [<code>tag_len*byte</code>:<code>tag</code>]
-*** [<code>BigSize</code>:<code>metadata_len</code>]
-*** [<code>metadata_len*byte</code>:<code>metadata</code>]
+*** [<code>32*byte</code>:<code>meta_hash</code>]
 *** [<code>u32</code>:<code>output_index</code>]
 *** [<code>u8</code>:<code>type</code>]
 * type: 3 (<code>asset_key_family</code>)

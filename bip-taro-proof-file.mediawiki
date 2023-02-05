@@ -114,7 +114,14 @@ blob with the following format:
 * type: 7 (<code>split_root_proof</code>)
 ** value:
 *** [<code>...*byte</code>:<code>taro_taproot_proof</code>]
-* type: 8 (<code>taro_input_splits</code>)
+* type: 8 (<code>meta_reveal</code>)
+** value:
+*** [<code>...*byte</code>:<code>asset_meta_reveal</code>]
+**** type: 0 (<code>meta_type</code>
+***** value: [<code>uint8</code>:<code>type</code>]
+**** type: 1 (<code>meta_data</code>
+***** value: [<code>*byte</code>:<code>meta_data_bytes</code>]
+* type: 9 (<code>taro_input_splits</code>)
 ** value:
 *** [<code>...*byte</code>:<code>nested_proof_map</code>]
 
@@ -132,6 +139,13 @@ where:
 * <code>taproot_exclusion_proofs</code>: is a series of _exclusion_ proofs that prove that the other outputs in a transaction don't commit to a valid taro asset. This re-uses the <code>taro_taproot_proof</code> structure, but will only contain an <code>taro_commitment_exclusion_proof</code> value and not also a <code>taro_taproot_proof</code> value.
 * <code>split_root_proof</code>: is an optional <code>taro_taproot_proof</code> that proves the inclusion of the split commitment's root asset in case of an asset split.
 * <code>taro_input_splits</code>: is an optional list of nested full proofs for any additional inputs found within the resulting asset.
+* <code>asset_meta_reveal</code>: is an mandatory field (for genesis assets) that reveals the pre-image of the <code>asset_meta_hash</code> contained in the asset TLV.
+** The <code>meta_type</code> field can be used to indicate how to parse/render the meta data pre-image.
+*** The meta type currently defined are:
+**** <code>0</code>: no true type, just desginates an opaque data blob.
+** The <code>meta_data</code> is the raw meta data itself.
+*** If the contained asset is a genesis asset (has a valid genesis witness), then a verifier SHOULD verify that: `sha256(tlv_encode(meta_reveal)) == asset_meta_hash`.
+*** This field MUST only be present for genesis asset proofs.
 
 The final flat proof file has the following format:
 * [<code>u32</code>:<code>file_version</code>] version of proof file
@@ -167,6 +181,7 @@ Given a proof file for a given asset <code>f_proof</code>, genesis outpoint
 ## Verify that the asset witness included at the <code>prev_asset_witness<code> field of the <code>taro_asset_leaf</code> is valid based on the specific <code>asset_script_version</code>
 ## If a <code>split_commitment_opening</code> is present, verify that the included leaf is a valid opening rooted at the <code>taro_asset_leaf</code>'s <code>split_commitment_root</code> field.
 ## If a <code>split_commitment_opening</code> is present, verify that an inclusion proof for the <code>split_commitment_root</code>'s leaf is present in <code>split_root_proof</code>.
+## If the asset is a genesis asset, and the <code>asset_meta</code> field is present, then verify that <code>sha256(asset_meta) == asset.asset_meta_hash</code>
 
 A psuedo-code routine for flat file verification follows:
 <source lang="python">
@@ -221,6 +236,24 @@ verify_asset_file_proof(file_proof []byte, genesis_outpoint OutPoint,
                 proof_tlv_map.split_commitment_opening.split_commitment_root,
                 proof_tlv_map.split_root_proof,
             ):
+                return false
+
+        has_meta_reveal = proof_tlv_map.meta_reveal is not None
+        has_meta_hash = proof_tlv_map.asset.meta_hash is not None
+        is_genesis_asset = is_genesis_asset(proof_tlv_map.asset)
+        match:
+            case has_meta_reveal && !is_genesis_asset:
+                return false
+
+            case has_meta_reveal && is_genesis_asset:
+                meta_hash := sha256(meta_reveal)
+                if meta_hash != proof_tlv_map.asset.meta_hash:
+                    return false
+
+            case has_meta_hash && is_genesis_asset && !has_meta_reveal:
+                return false
+
+            case !has_meta_reveal && is_genesis_asset:
                 return false
 
     return true

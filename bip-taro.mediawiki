@@ -225,12 +225,13 @@ Taro-specific commitments, then the same or different leaf version can be used
 to gate verification of the new behavior.
 
 An <code>asset_id</code> is the 32-byte hash of: 
-* <code>sha256(genesis_outpoint || asset_tag || asset_meta || output_index || asset_type)</code>
+* <code>sha256(genesis_outpoint || sha256(asset_tag) || asset_meta_hash || output_index || asset_type)</code>
 
 where:
 * <code>genesis_outpoint</code> is the first previous input outpoint used in the asset genesis transaction serialized in Bitcoin wire format.
 * <code>asset_tag</code> is a random 32-byte value that represents a given asset, and can be used to link a series of discrete assets into a single asset family. In practice, this will typically be the hash of a human readable asset name.
-* <code>asset_meta</code> is an opaque 32-byte value that can be used to commit to various metadata including external links, documents, stats, attributes, images, etc. Importantly, this field is considered to be ''immutable''.
+* <code>asset_meta_hash</code> is an opaque 32-byte value that can be used to commit to various metadata including external links, documents, stats, attributes, images, etc. Importantly, this field is considered to be ''immutable''.
+** The genesis asset proof MUST contain the preimage of the <code>asset_meta_hash</code>, which allows verifiers to obtain the committed data and also verify the sha2 preimage.
 * <code>output_index</code> (4 byte, big-endian) is the index  of the output which contains the unique Taro commitment in the genesis transaction. 
 * <code>asset_type</code> (1 byte) is the type of the asset being minted.
 
@@ -373,8 +374,11 @@ hash) is described in <code>bip-taro-taproot-merkle-tree.mediawiki</code>.
 
 The <code>asset_tag</code> field cannot be enforced to be ''globally'' unique.
 Instead to ensure locally unique <code>asset_id</code> instances within initial
-asset creation, each <code>asset_tag</code> and <code>asset_meta</code> value
-MUST only appear once during asset creation.
+asset creation, each <code>asset_tag</code> and <code>asset_meta_hash</code>
+value MUST only appear once during asset creation. In addition, the _pre image_
+to the <code>asset_meta_hash</code>, dubbed the <code>meta_reveal</code> can be
+packaged along with the initial proof of genesis asset creation to ensure
+verifiers can obtain all the relevant data for a given asset.
 
 The top-level MS-SMT commits to the set of all held defined assets. The root hash
 of this MS-SMT tree is referred to as the <code>asset_tree_root</code>. The
@@ -567,9 +571,7 @@ iterations. Types with a numerical value above this reserved range can be used
 to store arbitrary attributes to assets. An eaxmple of such an attribute would
 be storing the _mutable_ stats of an in-game asset.  Any immutable fields for
 normal or collectible assets should be instead committed to within the
-`asset_meta` be storing the ''mutable'' stats of an in-game asset. Any
-immutable fields for normal or unique assets should be instead committed to
-within the <code>asset_meta</code> field.
+`asset_meta_hash` be storing the ''mutable'' stats of an in-game asset. 
 
 The usage of an MS-SMT for the Taro asset tree itself permits parties to easily
 verify that no new assets are created when inputs are referenced, and also that
@@ -592,11 +594,12 @@ The following function creates a new valid taproot public key script whose
 internal tapscript tree commits to the representation of the new asset:
 <source lang="python">
 create_new_asset_output(total_units: uint64, asset_tag: [32]byte, 
-    genesis_point: [36]byte, asset_meta: [32]byte, output_index uint32,
+    genesis_point: [36]byte, asset_meta_hash: [32]byte, output_index uint32,
     asset_type: uint8, asset_script_key: [32]byte, taro_attrs: TLV) -> PkScript:
 
     asset_id = sha256(
-        genesis_point || asset_tag || asset_meta || output_index || asset_type
+        genesis_point || sha256(asset_tag) || asset_meta_hash || output_index || 
+        asset_type
     )
 
     tlv_leaf = new_taro_tlv_leaf(
