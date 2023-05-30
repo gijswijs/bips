@@ -480,16 +480,9 @@ An asset leaf is a serialized TLV blob, with the following key-value mappings:
 * type: 0 (<code>taproot_asset_version</code>)
 ** value: 
 *** [<code>u8</code>:<code>version</code>]
-* type: 1 (<code>asset_genesis</code>)
+* type: 1 (<code>asset_id</code>)
 ** value:
-*** [<code>32*byte</code>:<code>first_prev_out_hash</code>]
-*** [<code>u32</code>:<code>first_prev_out_index</code>]
-*** [<code>BigSize</code>:<code>tag_len</code>]
-*** [<code>tag_len*byte</code>:<code>tag</code>]
-*** [<code>BigSize</code>:<code>metadata_len</code>]
-*** [<code>metadata_len*byte</code>:<code>metadata</code>]
-*** [<code>u32</code>:<code>output_index</code>]
-*** [<code>u8</code>:<code>type</code>]
+*** [<code>32*byte</code>:<code>asset_id</code>]
 * type: 2 (<code>asset_type</code>)
 ** value: 
 *** [<code>u8</code>:<code>type</code>]
@@ -529,7 +522,6 @@ An asset leaf is a serialized TLV blob, with the following key-value mappings:
 where:
 
 * <code>taproot_asset_version</code>: is a single byte that denotes the version of Taproot Asset being used, which allows a client to determine which of the below TLV values to expect.
-* <code>asset_genesis</code>: is the <code>asset_genesis</code> defined above, representing the preimage of the <code>asset_id</code>.
 * <code>asset_type</code>: is a single byte representing the type of the asset, two starting asset types are defined:
 ** <code>0</code>: a normal asset
 ** <code>1</code>: a collectible asset
