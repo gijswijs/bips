@@ -246,7 +246,7 @@ A Multiverse has the following structure:
 * Similar to normal Taproot Asset commitments, the Multiverse itself contains two nested MS-SMT trees. The upper tree commits to the set of asset groups observed, with the inner tree committing to the transaction history of each of the asset groups.
 * Upper tree structure:
 ** <code>key</code>: <code>asset_id</code> or <code>sha256(asset_key_family)</code>
-** <code>value</code>: <code>asset_group_tree_root || asset_group_sum</code>
+** <code>value</code>: <code>asset_group_tree_root</code>
 ** <code>sum_value</code>: <code>asset_group_sum</code>
 * Inner tree structure: 
 ** <code>key</code>: an <code>sha256(outpoint || scriptKey)</code>, serialized in a <code>txid:vout</code> structure as we find in Bitcoin.
