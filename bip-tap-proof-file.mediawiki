@@ -129,6 +129,9 @@ blob with the following format:
 * type: 10 (<code>challenge_witness</code>)
 ** value:
 *** [<code>...*byte</code>:<code>challenge_witness</code>]
+* type: 11 (<code>block_height</code>)
+** value:
+*** [<code>uint32</code>:<code>block_height</code>]
 
 where:
 * <code>prev_out</code>: is the 36-byte outpoint of the Taproot Asset committed output being spent. If this is the very first proof, then this value will be the "genesis outpoint" for the given asset.
@@ -152,6 +155,7 @@ where:
 *** If the contained asset is a genesis asset (has a valid genesis witness), then a verifier SHOULD verify that: `sha256(tlv_encode(meta_reveal)) == asset_meta_hash`.
 *** This field MUST only be present for genesis asset proofs.
 * <code>challenge_witness</code> is an optional asset witness over a well-defined asset state transition that proves ownership of the <code>script_key</code> the asset currently resides at.
+* <code>block_height</code>: is the block height of the block that includes a spend of the <code>prev_out</code> outpoint.
 
 The final flat proof file has the following format:
 * [<code>u32</code>:<code>file_version</code>] version of proof file
