@@ -511,9 +511,10 @@ An asset leaf is a serialized TLV blob, with the following key-value mappings:
 ******* value: [<code>prev_outpoint || asset_id || asset_script_key</code>]
 ****** type: 1 (<code>asset_witness</code>)
 ******* value: [<code>...*byte</code>:<code>asset_witness</code>]
-****** type: 2 (<code>split_commitment_proof</code>)
-******* value: [<code>...*byte</code>:<code>split_proof</code>]
-* type: 7 (<code>split_commitment</code>)
+****** type: 2 (<code>split_commitment</code>)
+******* value: [<code>...*byte</code>:<code>split_commitment_proof</code>]
+******* value: [<code>...*byte</code>:<code>root_asset</code>]
+* type: 7 (<code>split_commitment_root</code>)
 ** value: [<code>32*byte</code>:<code>split_commitment_root</code>]
 * type: 8 (<code>asset_script_version</code>)
 ** value: 
@@ -541,11 +542,11 @@ where:
 *** If this field is all zeroes, then that indicates a ''new'' asset is being created.
 *** For ''internal'' split verification, this field can be used to save space by including only a single signature/witness that covers all other new splits.
 *** If this type isn't present, then a <code>split_commitment</code> MUST be present.
-** <code>split_commitment_proof</code>: is used to permit the spending of an asset UTXO created as a result of an asset split. When an asset is split, the non-change UTXO commits to the location of all other splits within an MS-SMT tree. When spending a change UTXO resulting from an asset_split, a normal <code>asset_witness</code> isn't required, instead the owner of the change asset UTXO must prove that it holds a valid split which was authorized by the main transfer transaction.
+** <code>split_commitment_proof</code>: is used to permit the spending of an asset UTXO created as a result of an asset split. When an asset is split, the non-change UTXO commits to the location of all other splits within an MS-SMT tree. When spending a change UTXO resulting from an asset_split, a normal <code>asset_witness</code> isn't required, instead the owner of the change asset UTXO must prove that it holds a valid split which was authorized by the main transfer transaction (the <code>root_asset</code>).
 *** Outputs with the same <code>split_commitment</code> are said to share a single <code>asset_witness</code> as such outputs are the result of a new asset split. Therefore we only need a single witness and the resulting merkle-sum asset tree to verify a transfer.
 ** <code>asset_witness</code>: is a serialized witness in an identical format as Bitcoin's Segwit witness field. This field can only be blank if <code>prev_asset_id</code> is blank.
-* <code>split_commitment</code>: is used to commit to, and permit verification of the new output split distribution for normal assets. The <code>split_commitment_root</code> is an MS-SMT with a key of <code>sha256(output_index || asset_id || asset_script_key)</code>, and the value being the new Taproot Asset leaf. This is an optional field and is only specified when an asset value is split during transfer.
-*** Outputs with the same <code>split_commitment</code> are said to share a single <code>asset_witness</code> as such outputs are the result of a new asset split. Therefore we only need a single witness and the resulting merkle-sum asset tree to verify a transfer.
+* <code>split_commitment_root</code>: is used to commit to, and permit verification of the new output split distribution for normal assets. The <code>split_commitment_root</code> is an MS-SMT with a key of <code>sha256(output_index || asset_id || asset_script_key)</code>, and the value being the new Taproot Asset leaf. This is an optional field and is only specified when an asset value is split during transfer.
+*** Outputs with the same <code>split_commitment_root</code> are said to share a single <code>asset_witness</code> as such outputs are the result of a new asset split. Therefore we only need a single witness and the resulting merkle-sum asset tree to verify a transfer.
 * <code>asset_script_version</code>: is a 2 byte asset script version that governs how the following TLV value is to be validated.
 * <code>asset_script_key</code>: is the external public key derived in a BIP 341 manner which may commit to an asset script that encumbers this asset leaf.
 * <code>asset_group_key</code>: is a 32-byte public key as defined by [[../master/bip-0340.mediawiki|BIP-340]] followed by a 64-byte BIP 340 signature over the <code>asset_id</code>. This key can be used to associate distinct assets as identified by their <code>asset_id</code>, effectively allowing further issuance of a base asset. Assets that references the same <code>asset_group_key</code> are to be considered the same asset. This is an optional field, and assets that don't contain this field are effectively considered to be a one-time only issuance event, meaning no further assets related to the derived <code>asset_id</code> can be created.
