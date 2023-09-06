@@ -59,13 +59,13 @@ commitment (which lives in a taproot output), and its valid opening, the set
 the previous asset ID are compressed into a single input, and the present
 <code>split_commitment</code> is used to compress the output state.
 
-State transition validation may take one or two asset leaves within a single
-transaction (with the leaves living in different outputs). When a single leaf
-is present, no splits occurred in the state transition, or the asset is a
-collectible. When two leaves are specified, then one of the leaves was a split
-resulting from a split event at the Taproot Asset layer. In this case, the split
-commitment proof, as well as the validity of the state transition creating the
-splits are validated.
+State transition validation may take one or multiple asset leaves within a
+single transaction (with the leaves living in different outputs). When a single
+leaf is present, no splits occurred in the state transition, or the asset is a
+collectible. When two or more leaves are specified, then all but one of the
+leaves were splits resulting from a split event at the Taproot Asset layer. In
+this case, the split commitment proof, as well as the validity of the state
+transition creating the splits are validated.
 
 
 ====Mapping Inputs====
