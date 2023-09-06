@@ -47,8 +47,11 @@ a single address.
 
 Let the human readable prefix (as specified by BIP 173) be:
 
-* <code>tap</code> for mainnet
-* <code>tapt</code> for testnet
+* <code>tapbc</code> for mainnet
+* <code>taptb</code> for testnet
+* <code>taprt</code> for regtest
+* <code>taptb</code> for the public signet
+* <code>tapsb</code> for simnet
 
 We refer to this value as the <code>taproot_asset_hrp</code>
 
@@ -80,9 +83,9 @@ types:
 * type: 8 (<code>amt</code>)
 ** value:
 *** [<code>BigSize</code>:<code>amt_to_send</code>]
-* type: 9 (<code>asset_type</code>)
+* type: 10 (<code>proof_courier_addr</code>)
 ** value:
-*** [<code>byte</code>:<code>asset_type</code>]
+*** [<code>...*byte</code>:<code>proof_courier_addr</code>]
 
 Inspired by Lightning's BOLT specification, we adopt the "it's OK to be odd"
 semantics here as well. This enables receivers to specify to the caller certain
@@ -93,6 +96,12 @@ The only odd keys specified in the current version are the
 <code>asset_key_family</code> field isn't always needed for assets that don't
 allow for continual re-issuance. Similarly, if the <code>asset_type</code>
 field isn't specified, then one can assume a normal asset is being sent.
+
+The <code>proof_courier_addr</code> is a mandatory URI (RFC 3986) that indicates
+what proof courier to use when sending the proofs from the sender to the
+recipient. The scheme (protocol) indicates the type of courier transport to use,
+current valid values are <code>hashmail://</code> for Hashmail based couriers
+and <code>universerpc://</code> for gRPC based transfer via a universe server.
 
 ===Decoding and Sending To An Address===
 
