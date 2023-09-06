@@ -47,7 +47,7 @@ in the past history of the asset:
 ** A valid MS-SMT opening proving the commitment of the new location of the asset.
 ** A valid asset witness state transition from the prior outpoint to the new location.
 ** A valid canonical Taproot Asset commitment exists for the given asset.
-** If the transaction anchoring the state transition has other outputs, then a valid tapscript exclusion proof to prove that the commitment isn't duplicated elsewhere.
+** If the transaction anchoring the state transition has other Taproot (P2TR) outputs, then a valid tapscript exclusion proof to prove that the commitment isn't duplicated elsewhere.
 
 ===Specification===
 
@@ -113,6 +113,8 @@ blob with the following format:
 ******* value: [<code>...*byte</code>:<code>tapscript_preimage</code>]
 ****** type: 1 (<code>tap_image_2</code>)
 ******* value: [<code>...*byte</code>:<code>tapscript_preimage</code>]
+****** type: 2 (<code>bip_86</code>)
+******* value: [<code>byte 0x00/0x01</code>:<code>bip_86</code>]
 * type: 7 (<code>taproot_exclusion_proofs</code>)
 ** value: 
 *** [<code>uint16</code>:<code>num_proofs</code>][<code>...*byte</code>:<code>taproot_asset_taproot_proof</code>]
