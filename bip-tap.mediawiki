@@ -648,131 +648,60 @@ several assets within a single output, thereby batching asset creation.
 
 Given the requirement that Taproot Asset commitments be unique within the
 context of a tapscript commitment, Taproot Assets can also be
-''provably burned''.
+''provably burned''. This can be achieved by simply ''removing'' the Taproot
+Asset leaf from the asset tree and proving that with an exclusion proof.
 
-In order to burn an asset, the holder of the asset can simply ''remove'' the
-Taproot Asset leaf from their asset tree.
+To make a burn more explicit and more easily identifiable and verifiable, the
+"Burn via proof-of-un-spendable-key" method was chosen: To burn a certain amount
+of assets, they are simply transferred to a provably un-spendable script key.
+A burn proof then simply looks like any other state transition proof, with the
+only difference that the script key can be identified as un-spendable.
 
-In order to prove to a 3rd party that an asset has been burnt, the holder of
-said asset must reveal the following information:
-* A non-inclusion proof rooted at their asset tree that proves that asset in question is no longer committed to.
-* A proof for each other top-level output in the burning transaction that asserts the following:
-** For each output, that doesn't commit to the asset tree the non-inclusion proof is rooted at, the first depth of the control block leaf reveal must be presented:
-*** If the output key was created via BIP 86, then simply verify the mapping based on the internal key. In this case there is no script tree being committed to.
-*** If the proof is of depth 0, meaning only a single value is committed to, then assert the item isn't a duplicate Taproot Asset root.
-**** If the leaf is a Taproot Asset commitment, present a non-inclusion proof showing the asset is no longer being committed to.
-*** If the proof is of depth 1, then assert that either both elements are tap branches, or one of the items is a leaf that isn't a duplicate Taproot Asset root.
-**** If either of the leaves are a valid Taproot Asset commitment, create a non-inclusion proof showing the asset is no longer being committed to.
+Such an asset burn transition can be folded in with other asset outputs (e.g.
+the change from a partial burn or other assets in the same commitment) in the
+same tree while burning. And in any subsequent transfer the burned leaves can
+be pruned by simply omitting them from the tree, which at that point does not
+require any additional proof.
 
-Asset burning and verification can be expressed via the following algorithms:
-
+A unique, provably un-spendable script key for an asset burn can be derived in
+the following way:
 <source lang="python">
-can_commit_to_taproot_asset(tx_out: TxOut) -> bool
-    match tx_out.pk_script:
-       case PayToTapRoot(output_key, internal_key):
-          if is_bip_86(output_key, internal_key):
-              return false
-
-           return true
-
-       default:
-          return false
-
-burn_asset(asset_id: AssetID, asset_script_key: SchnorrKey, taproot_asset_root: MerkleSumSMT, tx_outs: []TxOut) -> (PkScript, SMTProof):
-    # Obtain the asset SMT sub-tree within the main Taproot Asset commitment.
-    asset_smt = taproot_asset_root.fetch_asset_tree(asset_key)
-
-    # Next, delete the asset leaf and propagate that change to generate a new root.
-    new_asset_root = asset_smt.delete_leaf(asset_id, asset_script_key).merkle_up()
-
-    # We'll now replace the asset ID sub tree in the main Taproot Asset tree.
-    new_taproot_asset_root = asset_smt.replace_key(asset_id).merkle_up()
-
-    # Now that we have the new root, we'll use a fresh internal key and generate the output for it.
-    internal_key = new_internal_key()
-    taproot_asset_output = taproot_output_script(key=internal_key, leaves=[new_taproot_asset_root])
-
-    # The final step is to generate a non-inclusion proof to show the asset is no being committed to.
-    asset_burn_proof = gen_non_inclusion_proof(new_taproot_asset_root, asset_id, asset_script_key)
-
-    # We'll also supplement the proof above with sub-proofs for each other
-    # output in the burning transaction, to prove that the asset no longer
-    # exists.
-    for tx_out in tx_outs:
-        if !can_commit_to_taproot_asset(tx_out):
-            continue
-
-        asset_burn_proof.exclusion_proofs[tx_out] = gen_non_inclusion_proof(
-            tx_out.taproot_asset_root, asset_id, asset_script_key,
-        )
-
-    return (taproot_asset_output,  asset_burn_proof)
-
-no_taproot_asset_commitment(tx_out: TxOut) -> bool
-    // Take a look at the taproot commitment for this this output. Again
-    // there're two cases: single leaf, and multi leaf.
-    match tx_out.taproot_commitment:
-        # A single leaf, verify that the market bytes aren't present.
-        case SingleLeaf(leaf_bytes, internal_key):
-           if leaf_bytes[2:].starts_with(taproot_asset_marker):
-               return false
-
-       # More than one element, verify that each of those pre-images don't
-       # contain the market bytes.  
-       case MultiLeaf(branch_1_bytes, branch_2_bytes):
-           if branch_1_bytes(taproot_asset_marker):
-               return false
-
-           if branch_2_bytes[2:].starts_with(taproot_asset_marker):
-               return false
-
-    return true
-
-verify_burn_asset_proof(burn_txn: Tx, taproot_asset_root: MerkleSumSMT, burnt_asset: AssetBurnProof) -> bool
-    # Using their latest Taproot Asset root, verify that the non-inclusion proof
-    # is valid.
-    if !verify_non_inclusion_proof(burn_txn, taproot_asset_root, burnt_asset.proof):
-        return false
-
-    # Verify that the burning transaction also properly commits to the new root in a unique manner.
-    if !taproot_asset_commitment_is_valid(
-        burn_txn.taproot_asset_txout, burnt_asset.reveal_proof, burnt_asset.sibling, 
-        taproot_asset_root,
-    ):
-        return false
-
-    # Verify that no other duplicate Taproot Asset commitment is found in the
-    # transaction.
-    if !verify_no_taproot_asset_up_my_sleeves(burn_txn, taproot_asset_root):
-        return false
-    
-    # Finally verify the series of other non-inclusion proofs for each _other_
-    # output in the burning transaction. This ensures that the asset isn't
-    # being committed to elsewhere.
-    for tx_out in burn_tx.tx_outs:
-        # Filter out any non-P2TR or BIP 86 outputs as they can't commit to
-        # Taproot Assets.
-        if !can_commit_to_taproot_asset(tx_out):
-            continue
-
-        # If the output can, but doesn't commit to any assets, then we can
-        # skip it. We recognize this using the Taproot Asset bytes market.
-        if no_taproot_asset_commitment(tx_out):
-            continue
-
-        # The asset has a commitment, so we'll locate the non-inclusion proof
-        # to verify.
-        output_proof = burn_asset.tx_out_non_inclusion_proof(tx_out)
-        if !verify_non_inclusion_proof(
-            burn_tx, tx_out, output_proof.taproot_asset_root, output_proof.non_inclusion_proof
-        ):
-            return false
-
-    return true
+burn_tweak = tagged_hash("TapTweak", nums_key || prev_outpoint || prev_asset_id || prev_script_key)
+burn_key = nums_key + burn_tweak * G
 </source>
 
-In practice, verifiers will also likely want to assert that the merkle sum
-amount being committed to is inline with their expectations.
+where:
+* <code>nums_key</code> is the well-known NUMS point (using the string "taproot-assets" and the traditional "hash and increment" approach to generating the point)
+* <code>prev_outpoint</code> is the <code>outpoint</code> of the first <code>prev_input</code> of the root asset witness (see below)
+* <code>prev_asset_id</code> is the <code>asset_id</code> of the first <code>prev_input</code> of the root asset witness (see below)
+* <code>prev_script_key</code> is the <code>script_key</code> of the first <code>prev_input</code> of the root asset witness (see below)
+
+The first <code>prev_input</code> of the root asset witness is defined as the
+first input in the asset that carries the previous asset witness. If the asset
+has a split commitment, then this is
+<code>prev_asset_witnesses[0].split_commitment.root_asset.prev_asset_witnesses[0].prev_asset_id</code>
+otherwise it is simply <code>prev_asset_witnesses[0].prev_asset_id</code>.
+
+The following algorithm can be used to identify a provably un-spendable script
+key within an asset transfer to mark it as an asset burn:
+
+<source lang="python">
+derive_burn_key(first_prev_id: PrevID) -> SchnorrKey
+    burn_tweak = tagged_hash("TapTweak", NUMS_key || first_prev_id.outpoint || first_prev_id.asset_id || first_prev_id.script_key)
+    return = NUMS_key + burn_tweak*G
+
+get_first_prev_id(witness: AssetWitness) -> PrevID
+    if is_split_commit_witness(witness):
+        return witness.split_commitment.root_asset.prev_asset_witnesses[0].prev_asset_id
+        
+    return witness.prev_asset_id
+
+is_burn(asset: Asset) -> bool:
+    first_prev_id = get_first_prev_id(asset.prev_asset_witnesses[0])
+    burn_key = derive_burn_key(first_prev_id)
+
+    return asset.ScriptKey == burn_key
+</source>
 
 ===Asset Transfers===
 
@@ -1162,6 +1091,7 @@ bLIP ???.
 Test vectors for the [[Asset Leaf Format]] can be found here:
 * [[bip-tap/asset_tlv_encoding_generated.json|Asset TLV encoding test vectors]]
 * [[bip-tap/asset_tlv_encoding_error_cases.json|Asset TLV encoding error test vectors]]
+* [[bip-tap/asset_burn_key_generated.json|Asset burn key test vectors]]
 
 The test vectors are automatically generated by
 [https://github.com/lightninglabs/taproot-assets/tree/main/asset unit tests in
