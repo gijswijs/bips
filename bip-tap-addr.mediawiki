@@ -131,10 +131,28 @@ With the target taproot public key script constructed, the asset is sent to the
 receiver with the execution of the following steps:
 # Construct a valid transaction that spends an input that holds the referenced <code>asset_id</code> and ''exactly'' <code>amt</code> units of the asset.
 # Create a new Taproot Asset output commitment based on the input commitment (this will be the change output), that now only commits to <code>S-A</code> units of <code>asset_id</code>, where <code>S</code> is the input amount, and <code>A</code> is the amount specified in the encoded Taproot Asset address.
-## This new leaf MUST have a <code>split_commitment</code> specified that commits to the position (keyed by <code>sha256(output_index || asset_id || asset_script_key)</code> within the transaction of the newly created asset leaf for the receiver.
+## This new leaf MUST have a <code>split_commitment</code> specified that commits to the position (keyed by <code>sha256(output_index || asset_id || asset_script_key)</code> within the transaction of the newly created asset leaf for the receiver. This split commitment is omitted by the sender when serializing the leaf for inclusion in the asset tree, otherwise the tree wouldn't be predictable on the receiver side. This has a corresponding rule in the [[./bip-tap-vm.mediawiki|bip-tap-vm]] during the input mapping of the inclusion proof validation.
 ## Add an additional output that sends a de minimis (in practice this MUST be above dust) amount to the top-level taproot public key computed earlier.
 ## Broadcast and sign the transaction, submitting the resulting Taproot Asset state transition proof to a Universe of choice, also known by the receiver.
 # Post the resulting state transition proof to the specified Universe. The submitted proof ''must'' contain the optional auxiliary value of the full <code>split_commitment</code> the receiver requires to spend the asset.
+
+===Non-interactive full value send===
+
+Sending assets to an address is inherently a non-interactive process as there is
+no active communication between the sender and recipient other than the exchange
+of the address in the first place.
+Because of the above mentioned requirement that an asset leaf created to send to
+an address MUST have a <code>split_commitment</code>, a special case exists if
+there is no change going back to the sender (an asset output is fully consumed
+by the transfer to an address): A special ''tombstone'' output with a value of
+0 must be created for the split root asset (the <code>root_asset</code> of the
+split) that holds the transfer witness. The <code>script_key</code> of the
+split root asset output should be the well-known NUMS point (using the string
+"taproot-assets" and the traditional "hash and increment" approach to generating
+the point) to prove the output cannot be spent further. Such a tombstone output
+can then be pruned from the tree when the UTXO is spent further.
+More details about interactive and non-interactive sends and tombstone outputs
+can be found in the [[./bip-tap-psbt.mediawiki|bip-tap-psbt]].
 
 ===Spending The Received Asset===
 
